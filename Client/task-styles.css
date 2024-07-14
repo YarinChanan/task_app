@@ -1,0 +1,148 @@
+/* Reset some default styles */
+body, h1, h4, p, input, ul, li, button {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Basic body styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.description-container{
+    background: white;
+    right: 450px;
+
+}
+
+.task-container2 {
+    background: white;
+    padding: 45px 55px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 450px;
+    text-align: center;
+}
+
+.task-adder {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;  /* Adjust padding */
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;  /* Adjust font size */
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;  /* Space between icon and text */
+}
+.Logout {
+    background-color: #dd71b4;
+    color: white;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.task-adder:hover {
+    background-color: #218838;
+}
+
+h4 {
+    margin-bottom: 25px;
+    color: #666;
+    font-size: 18px;
+}
+
+/* Style the input fields */
+input[type="text"] {
+    width: calc(70% - 20px);
+    padding: 8px 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    border-radius: 4px;
+}
+
+/* Task list styles */
+#taskList {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+}
+
+#taskList li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    transition: background 0.3s;
+}
+
+#taskList li.done {
+    text-decoration: line-through;
+    background: #d4edda;
+}
+
+.buttons {
+    display: flex;
+    align-items: center;
+}
+
+.done-button, .delete-button, .description-button, .description-container {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background 0.3s;
+    position: absolute; /* Positioning buttons */
+    right: 500px; /* Align to the right */
+}
+.description-button{
+    color: #181918;
+    right: 450px; 
+}
+
+.description-container{
+    right: 250px;
+}
+.done-button {
+    color: #28a745;
+    right: 550px; /* Position the done button to the left of the delete button */
+}
+
+
+.delete-button {
+    color: #dc3545;
+}
+
+
+.done-button:hover {
+    color: #218838;
+}
+
+
+.delete-button:hover {
+    color: #c82333;
+}
+
+.Logout:hover {
+    background-color: #db42a0;
+}

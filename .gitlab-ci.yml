@@ -1,0 +1,234 @@
+stages:
+  - extract-commit
+  - updating-version
+  - build-push
+  - deploy
+
+variables:
+  BACKEND_IMAGE: "task_app_server"
+  FRONTEND_IMAGE: "task_app_nginx"
+  BACKEND_NAME: "tasks"
+  FRONTEND_NAME: "task_client"
+  PROD_IP: "44.207.72.3"
+
+
+extract_version_type:
+  stage: extract-commit
+  script:
+    - echo "${CI_COMMIT_MESSAGE}"
+    - |
+      if echo "${CI_COMMIT_MESSAGE}" | grep -i 'major'; then
+        export VERSION_TYPE=major
+      elif echo "${CI_COMMIT_MESSAGE}" | grep -i 'minor'; then
+        export VERSION_TYPE=minor
+      elif echo "${CI_COMMIT_MESSAGE}" | grep -i 'patch'; then
+        export VERSION_TYPE=patch
+      else
+        echo "No valid version type found in commit message"
+        exit 1
+      fi
+    - |
+      if git diff-tree --name-only -r "$CI_COMMIT_SHA" | grep -iq 'client/'; then
+        export CHANGE_LOCATION=client.version
+      elif git diff-tree --name-only -r "$CI_COMMIT_SHA" | grep -iq 'backend/'; then
+        export CHANGE_LOCATION=server.version
+      else
+        export CHANGE_LOCATION=bla
+      fi
+    - echo "VERSION_TYPE=${VERSION_TYPE}" > version.env
+    - echo "CHANGE_LOCATION=${CHANGE_LOCATION}" >> version.env  # Use >> to append to version.env
+
+    - cat version.env      # debugging
+  artifacts:
+    reports:
+      dotenv: version.env
+    paths:
+      - version.env
+
+
+
+push_back_to_remote:
+  stage: updating-version
+  variables:
+    CONFIG_REPO_URL: "https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@gitlab.com/sre-alpha1/on-boarding1/yarin/configurations"
+  script:
+    - source $CI_PROJECT_DIR/version.env
+    - git clone $CONFIG_REPO_URL configurations
+    - cd configurations
+    - chmod +x set-ver.sh
+    - ./set-ver.sh $VERSION_TYPE $CHANGE_LOCATION
+
+    - git config user.email "cipipeline@example.com"
+    - git config user.name "CI Pipeline"
+    - git add .
+    - git commit -m "Update version to $VERSION_TYPE for $CHANGE_LOCATION"
+    - git push origin main
+
+    - MAJOR=$(grep '^MAJOR=' $CHANGE_LOCATION | cut -d'=' -f2)     #splits a line of text into fields based on a delimiter.
+    - MINOR=$(grep '^MINOR=' $CHANGE_LOCATION | cut -d'=' -f2)
+    - PATCH=$(grep '^PATCH=' $CHANGE_LOCATION | cut -d'=' -f2)
+    - echo "MAJOR=$MAJOR" > $CI_PROJECT_DIR/changedVersion.env
+    - echo "MINOR=$MINOR" >> $CI_PROJECT_DIR/changedVersion.env
+    - echo "PATCH=$PATCH" >> $CI_PROJECT_DIR/changedVersion.env
+    - cat $CI_PROJECT_DIR/changedVersion.env  # debugging
+
+
+  needs:
+    - job: extract_version_type
+      artifacts: true
+  artifacts:
+    reports:
+      dotenv: changedVersion.env
+    paths:
+      - changedVersion.env
+
+
+
+
+build_backend:
+  stage: build-push
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+  script:
+    - echo "Building Backend"
+    - cd Backend
+    - docker build -t $DOCKER_USERNAME/$BACKEND_IMAGE:${MAJOR}.${MINOR}.${PATCH} .
+
+    - echo "Pushing image"
+    - docker push $DOCKER_USERNAME/$BACKEND_IMAGE:${MAJOR}.${MINOR}.${PATCH}
+    - docker rmi $DOCKER_USERNAME/$BACKEND_IMAGE:${MAJOR}.${MINOR}.${PATCH}
+  rules:
+    - changes:
+      - Backend/**
+  needs:
+    - job: push_back_to_remote
+      artifacts: true
+
+
+
+
+build_client:
+  stage: build-push
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  before_script:
+    - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+  script:
+    - echo "Building Client"
+    - cd Client
+    - docker build -t $DOCKER_USERNAME/$FRONTEND_IMAGE:${MAJOR}.${MINOR}.${PATCH} .
+
+    - echo "Pushing image"
+    - docker push $DOCKER_USERNAME/$FRONTEND_IMAGE:${MAJOR}.${MINOR}.${PATCH}
+    - docker rmi $DOCKER_USERNAME/$FRONTEND_IMAGE:${MAJOR}.${MINOR}.${PATCH}
+  rules:
+    - changes:
+      - Client/**
+  needs:
+    - job: push_back_to_remote
+      artifacts: true
+
+
+
+
+deploy_job_backend:
+  stage: deploy
+  image: ubuntu
+  before_script:
+    - apt-get update
+    #Installs curl, a tool to transfer data from or to a server.
+    - apt-get install curl -y
+    #Installs the ssh package to enable SSH connections.
+    - apt-get install ssh -y
+    ## Install ssh-agent if not already installed, it is required by Docker.
+    - 'command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )'
+    ## Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    ## Write SSH key to a file and give it the right permissions
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
+    - chmod 400 deploy_key.pem
+    - ssh-add deploy_key.pem
+    ## Create the SSH directory and give it the right permissions
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - shopt -s expand_aliases
+    - alias server_app='ssh -o StrictHostKeyChecking=no -i deploy_key.pem ec2-user@$PROD_IP'
+
+  script:
+  - echo "Deploying Client..."
+  - VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+  - server_app -- "sudo docker stop task_client tasks"
+  - server_app -- "sudo docker rm task_client tasks"
+  - server_app -- "sudo docker images | grep yarinch/task_app_server | awk '{print \$3}' | xargs sudo docker rmi || true"
+  - server_app -- "sudo docker pull yarinch/task_app_server:$VERSION"
+  - server_app -- "sudo docker run -d --name tasks --network task_network -p 3000:3000 yarinch/task_app_server:$VERSION"
+  
+  # Find the tag for yarinch/task_app_nginx (assuming there's only one)
+  - TAG=$(server_app -- "sudo docker images | grep yarinch/task_app_nginx | awk '{print \$2}'")
+  - echo "Using tag:$TAG"
+  
+  - server_app -- "sudo docker run -d --name task_client --network task_network -p 8082:80 yarinch/task_app_nginx:$TAG"
+  rules:
+    - changes:
+      - Backend/**
+  needs:
+    - job: push_back_to_remote
+      artifacts: true
+    - job: build_backend
+      optional: true
+    - job: build_client
+      optional: true
+
+
+
+
+
+deploy_job_client:
+  stage: deploy
+  image: ubuntu
+  before_script:
+    - apt-get update
+    - apt-get install curl -y
+    - apt-get install ssh -y
+    ## Install ssh-agent if not already installed, it is required by Docker.
+    - 'command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )'
+    ## Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    ## Write SSH key to a file and give it the right permissions
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
+    - chmod 400 deploy_key.pem
+    - ssh-add deploy_key.pem
+    ## Create the SSH directory and give it the right permissions
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - shopt -s expand_aliases
+    - alias server_app='ssh -o StrictHostKeyChecking=no -i deploy_key.pem ec2-user@$PROD_IP'
+
+  script:
+    - echo "Deploying Client..."
+    - VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+    - server_app -- "sudo docker stop task_client"
+    - server_app -- "sudo docker rm task_client"
+    - server_app -- "sudo docker images | grep yarinch/task_app_nginx | awk '{print \$3}' | xargs sudo docker rmi || true"
+    - server_app -- "sudo docker pull yarinch/task_app_nginx:$(echo $VERSION)"
+    - server_app -- "sudo docker run -d --name task_client --network task_network -p 8082:80 yarinch/task_app_nginx:$(echo $VERSION)"
+  rules:
+    - changes:
+      - Client/**
+  needs:
+    - job: push_back_to_remote
+      artifacts: true
+    - job: build_backend
+      optional: true
+    - job: build_client
+      optional: true
+    - job: deploy_job_backend
+      optional: true
+
+

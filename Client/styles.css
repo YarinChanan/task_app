@@ -1,0 +1,80 @@
+/* Reset some default styles */
+body, h1, h4, p, input, ul, li {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Basic body styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+
+/* Center the content and add some padding */
+.task-container {
+    background: white;
+    padding: 35px 45px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 450px;
+    text-align: center;
+}
+
+.Create-New-User {
+    background: white;
+    padding: 35px 45px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 450px;
+    text-align: center;
+}
+
+/* Style the subheader */
+h4 {
+    margin-bottom: 25px;
+    color: #666;
+    font-size: 18px;
+}
+
+/* Style the input fields */
+input[type="text"], input[type="password"] {
+    width: calc(70% - 20px);
+    padding: 8px 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+/* Style the submit button */
+.enter-button {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    font-size: 15px;
+}
+
+.enter-button:hover {
+    background-color: #218838;
+}
+
+.new-user-button {
+    background-color: #dd71b4;
+    color: white;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.new-user-button:hover {
+    background-color: #dd71b4a8;
+}

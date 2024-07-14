@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="task-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="task-container2">
+        <h1>Task Manager</h1><br>
+        <h4>TASKS:</h4>
+        <input type="text" id="task" placeholder="Enter task title..." autocomplete="off"><br>
+        <p><button class="task-adder" onclick="addTask()">
+            <i class="fas fa-plus"></i> Add Task
+        </button></p><br>
+        <p><input type="submit" value="Logout" class="Logout" onclick="logOut()"></p>
+
+        <ul id="taskList"></ul>
+        
+    </div>
+    <script src="script.js"></script>
+    <script src="script2.js"></script>
+    <script>
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const username = urlParams.get('username');
+            loadTasks(username);
+        };
+    </script>
+</body>
+</html>
+</body>
+</html>
